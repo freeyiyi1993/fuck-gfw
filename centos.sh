@@ -7,6 +7,7 @@ function installVPN(){
     read pass
     cd /tmp
     echo "begin to install VPN services";
+    rpm -Uvh http://mirrors.hustunique.com/epel/6/i386/epel-release-6-8.noarch.rpm
     yum remove -y pptpd ppp
     iptables --flush POSTROUTING --table nat
     iptables --flush FORWARD
@@ -80,6 +81,5 @@ read num
 case "$num" in
 [1] ) (installVPN);;
 [2] ) (installGoAgent);;
-[3] ) ();;
 *) echo "nothing,exit";;
 esac
