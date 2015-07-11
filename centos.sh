@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 function installVPN(){
     echo 'VPN User:'
     read user
@@ -36,7 +35,7 @@ function installVPN(){
 
 function installPython(){
     cd ~
-    yum install -y gcc zlib-devel openssl-devel libffi-devel
+    yum install -y gcc zlib-devel openssl-devel libffi-devel wget
     wget --no-check-certificate https://www.python.org/ftp/python/2.7.7/Python-2.7.7.tgz -O Python-2.7.7.tgz
     tar zxf Python-2.7.7.tgz
     cd Python-2.7.7
@@ -72,6 +71,15 @@ function installGoAgent() {
     echo '*/10 * * * * root sh /opt/goagent/goagentvps.sh restart'
     rm -rf $goagent_dir
 }
+function installShadowSocks() {
+    yum install build-essential autoconf libtool openssl-devel gcc git -y
+    ss_dir=/tmp/ss
+    rm -rf $ss_dir
+    git clone https://github.com/madeye/shadowsocks-libev.git $ss_dir
+    cd $ss_dir
+    ./configure
+    make && make install
+}
 echo "which do you want to?input the number."
 echo "1. install VPN service"
 echo "2. install goagent service"
@@ -81,5 +89,6 @@ read num
 case "$num" in
 [1] ) (installVPN);;
 [2] ) (installGoAgent);;
+[3] ) (installShadowSocks);;
 *) echo "nothing,exit";;
 esac
