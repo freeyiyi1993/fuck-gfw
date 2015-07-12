@@ -1,27 +1,30 @@
 #!/bin/bash
 function installVPN(){
     echo "begin to install VPN services";
-    rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm > /dev/null
-    iptables --flush POSTROUTING --table nat
-    iptables --flush FORWARD
     rm -rf /etc/pptpd.conf
     rm -rf /etc/ppp
-    arch=`uname -m`
-    yum -y install ppp iptables pptpd > /dev/null
-    mknod /dev/ppp c 108 0
+    yum install -y epel-release
+    yum install -y ppp firewalld pptpd > /dev/null
     echo 1 > /proc/sys/net/ipv4/ip_forward
-    echo "mknod /dev/ppp c 108 0" >> /etc/rc.local
     echo "echo 1 > /proc/sys/net/ipv4/ip_forward" >> /etc/rc.local
-    echo "localip 192.168.0.1" >> /etc/pptpd.conf
-    echo "remoteip 192.168.0.234-238,192.168.0.245" >> /etc/pptpd.conf
+    echo "localip 10.0.0.1" >> /etc/pptpd.conf
+    echo "remoteip 10.0.0.100-200" >> /etc/pptpd.conf
     echo "ms-dns 8.8.8.8" >> /etc/ppp/options.pptpd
     echo "ms-dns 8.8.4.4" >> /etc/ppp/options.pptpd
-    iptables -t nat -A POSTROUTING -s 192.168.0.0/24 -o eth1 -jMASQUERADE 
-    service iptables save
-    chkconfig iptables on
-    chkconfig pptpd on
-    service iptables start
-    service pptpd start
+    systemctl start firewalld
+    zone=public
+    firewall-cmd --permanent --new-service=pptp
+    cat >/etc/firewalld/services/pptp.xml<<EOF
+<?xml version="1.0" encoding="utf-8"?>
+<service>
+  <port protocol="tcp" port="1723"/>
+</service>
+EOF
+    firewall-cmd --permanent --zone=$zone --add-service=pptp
+    firewall-cmd --permanent --zone=$zone --add-masquerade
+    firewall-cmd --reload
+    systemctl start pptpd.service
+
     addVPNUser
     echo "VPN service is installed"
 }
