@@ -43,16 +43,16 @@ function installGoAgent() {
     mkdir -p /opt/goagent/log/
     cp $goagent_dir/local/proxylib.py /opt/goagent/
     setGoagentUser
-    cp /opt/goagent/goagentvps.sh /etc/init.d/goagentvps
-    chkconfig add goagentvps
-    chkconfig goagentvps on
-    service goagentvps start
-    echo '*/10 * * * * root service goagentvps restart' >> /etc/crontab
+    chmod +x /opt/goagent/goagentvps.sh
+    /opt/goagent/goagentvps.sh start
+    echo '*/10 * * * * root /opt/goagent/goagentvps.sh restart' >> /etc/crontab
     rm -rf $goagent_dir
 }
+
 function installShadowSocks() {
     pip install shadowsocks
 }
+
 function setGoagentUser(){
     echo 'goagent User:'
     read user
@@ -60,6 +60,7 @@ function setGoagentUser(){
     read pass
     echo "${user} ${pass}" > /opt/goagent/goagentvps.conf
 }
+
 echo "which do you want to?input the number."
 echo "1. install VPN service"
 echo "2. install goagent service"
