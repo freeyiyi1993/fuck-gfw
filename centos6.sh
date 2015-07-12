@@ -1,19 +1,13 @@
 #!/bin/bash
 function installVPN(){
-    echo 'VPN User:'
-    read user
-    echo 'Password:'
-    read pass
-    cd /tmp
     echo "begin to install VPN services";
-    rpm -Uvh http://mirrors.hustunique.com/epel/6/i386/epel-release-6-8.noarch.rpm
-    yum remove -y pptpd ppp
+    rpm -Uvh http://mirrors.hustunique.com/epel/6/i386/epel-release-6-8.noarch.rpm > /dev/null
     iptables --flush POSTROUTING --table nat
     iptables --flush FORWARD
     rm -rf /etc/pptpd.conf
     rm -rf /etc/ppp
     arch=`uname -m`
-    yum -y install ppp iptables pptpd
+    yum -y install ppp iptables pptpd > /dev/null
     mknod /dev/ppp c 108 0
     echo 1 > /proc/sys/net/ipv4/ip_forward
     echo "mknod /dev/ppp c 108 0" >> /etc/rc.local
@@ -22,18 +16,28 @@ function installVPN(){
     echo "remoteip 192.168.0.234-238,192.168.0.245" >> /etc/pptpd.conf
     echo "ms-dns 8.8.8.8" >> /etc/ppp/options.pptpd
     echo "ms-dns 8.8.4.4" >> /etc/ppp/options.pptpd
-    echo "${user} pptpd ${pass} *" >> /etc/ppp/chap-secrets
     iptables -t nat -A POSTROUTING -s 192.168.0.0/24 -o eth1 -jMASQUERADE 
     service iptables save
     chkconfig iptables on
     chkconfig pptpd on
     service iptables start
     service pptpd start
-    echo "VPN service is installed, your VPN username is ${user}, VPN password is ${pass}"
-    cd -
+    addVPNUser
+    echo "VPN service is installed"
+}
+
+function addVPNUser() {
+    echo 'VPN User:'
+    read user
+    echo 'Password:'
+    read pass
+    echo "${user} pptpd ${pass} *" >> /etc/ppp/chap-secrets
 }
 
 function installPython(){
+    if [ -e /usr/bin/python2.7 ]; then
+        return
+    fi
     cd ~
     yum install -y gcc zlib-devel openssl-devel libffi-devel wget
     wget --no-check-certificate https://www.python.org/ftp/python/2.7.7/Python-2.7.7.tgz -O Python-2.7.7.tgz
@@ -47,17 +51,15 @@ function installPython(){
     ldconfig
     wget https://bootstrap.pypa.io/get-pip.py
     python2.7 get-pip.py
-    /usr/local/Python2.7/bin/pip install gevent pyOpenSSL dnslib supervisor
+    echo 'PATH=$PATH:/usr/local/Python2.7/bin' >> /etc/rc.local
+    source /etc/rc.local
+    pip install gevent pyOpenSSL dnslib supervisor
     cd -
     rm -rf ~/Python-2.7.7 ~/Python-2.7.7.tgz
 }
 
 function installGoAgent() {
     installPython
-    echo 'goagent User:'
-    read user
-    echo 'Password:'
-    read pass
     goagent_dir=/tmp/goagent
     rm -rf $goagent_dir
     yum install -y git
@@ -65,30 +67,40 @@ function installGoAgent() {
     cp -r ${goagent_dir}/server/vps/ /opt/goagent
     mkdir -p /opt/goagent/log/
     sed -i 's~/usr/bin/env python~/usr/bin/env python2.7~' /opt/goagent/goagentvps.sh
-    echo "${user} ${pass}" > /opt/goagent/goagentvps.conf
     cp $goagent_dir/local/proxylib.py /opt/goagent/
-    sh /opt/goagent/goagentvps.sh start
-    echo '*/10 * * * * root sh /opt/goagent/goagentvps.sh restart'
+    setGoagentUser
+    cp /opt/goagent/goagentvps.sh /etc/init.d/goagentvps
+    chkconfig add goagentvps
+    chkconfig goagentvps on
+    service goagentvps start
+    echo '*/10 * * * * root service goagentvps restart' >> /etc/crontab
     rm -rf $goagent_dir
 }
 function installShadowSocks() {
-    yum install build-essential autoconf libtool openssl-devel gcc git -y
-    ss_dir=/tmp/ss
-    rm -rf $ss_dir
-    git clone https://github.com/madeye/shadowsocks-libev.git $ss_dir
-    cd $ss_dir
-    ./configure
-    make && make install
+    installPython
+    pip install shadowsocks
+    
+}
+function setGoagentUser(){
+    echo 'goagent User:'
+    read user
+    echo 'Password:'
+    read pass
+    echo "${user} ${pass}" > /opt/goagent/goagentvps.conf
 }
 echo "which do you want to?input the number."
 echo "1. install VPN service"
 echo "2. install goagent service"
 echo "3. install shadowsocks service"
+echo "4. Add VPN User"
+echo "5. Set goagent User"
 read num
 
 case "$num" in
 [1] ) (installVPN);;
 [2] ) (installGoAgent);;
 [3] ) (installShadowSocks);;
+[4] ) (addVPNUser);;
+[5] ) (setGoagentUser);;
 *) echo "nothing,exit";;
 esac
